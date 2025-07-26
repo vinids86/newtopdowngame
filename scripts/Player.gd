@@ -1,4 +1,3 @@
-# Player.gd
 extends CombatEntity
 
 @export var speed := 150.0
@@ -6,14 +5,17 @@ extends CombatEntity
 var attack_hitbox := preload("res://scripts/AttackHitbox.gd").new()
 
 func _ready():
+	add_to_group("player")
+
 	controller = CombatController.new()
+	create_attack_hitbox()
 	setup_combat_controller()
+	
 	create_sprite()
 	create_collision()
-	create_attack_hitbox()
+	create_hurtbox()
 	setup_audio()
 
-	# Configurações específicas de combate
 	controller.attack_startup = 0.6
 	controller.attack_duration = 0.4
 	controller.attack_cooldown = 0.5
@@ -28,6 +30,7 @@ func _process(delta):
 
 func handle_input():
 	if Input.is_action_just_pressed("attack"):
+		print("🖱️ Input de ataque detectado!")
 		controller.try_attack()
 	elif Input.is_action_just_pressed("parry"):
 		controller.try_parry()
@@ -48,4 +51,18 @@ func setup_combat_controller():
 	controller.play_sound.connect(play_sound)
 
 func create_attack_hitbox():
+	attack_hitbox = preload("res://scripts/AttackHitbox.gd").new()
+	attack_hitbox.set_collision_layers(1, 2)  # Player hitbox (layer 1) colide com enemy hurtbox (layer 2)
 	add_child(attack_hitbox)
+
+func create_hurtbox():
+	var hurtbox := Area2D.new()
+	hurtbox.name = "PlayerHurtbox"
+	var shape := CollisionShape2D.new()
+	shape.shape = RectangleShape2D.new()
+	shape.shape.size = Vector2(64, 64)
+	shape.position = Vector2.ZERO
+	hurtbox.add_child(shape)
+	hurtbox.set_collision_layer_value(4, true)  # Player hurtbox = layer 4
+	hurtbox.set_collision_mask_value(3, true)   # Colide com enemy hitbox (layer 3)
+	add_child(hurtbox)

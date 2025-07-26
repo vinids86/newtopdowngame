@@ -26,7 +26,7 @@ func take_damage(amount: int, attacker: Node) -> int:
 		return DefenseResult.HIT
 
 	if controller.combat_state == CombatController.CombatState.PARRY_ACTIVE:
-		if attacker.has("controller"):
+		if "controller" in attacker:
 			attacker.controller.on_parried()
 		return DefenseResult.PARRIED
 

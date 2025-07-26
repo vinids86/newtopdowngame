@@ -82,9 +82,19 @@ func _process(delta):
 		status_effects.erase(effect_name)
 
 func change_state(new_state: CombatState):
+	if owner_node.is_in_group("player"):
+		var from_name = CombatState.keys()[combat_state]
+		var to_name = CombatState.keys()[new_state]
+		print("🔄 Tentando transição: %s → %s" % [from_name, to_name])
+
 	if not transitions.get(combat_state, []).has(new_state):
-		print("❌ Transição inválida: %s → %s" % [combat_state, new_state])
+		if owner_node.is_in_group("player"):
+			print("❌ Transição inválida: %s → %s" % [
+				CombatState.keys()[combat_state],
+				CombatState.keys()[new_state]
+			])
 		return
+
 	_on_exit_state(combat_state)
 	combat_state = new_state
 	_on_enter_state(combat_state)

@@ -1,4 +1,3 @@
-# Enemy.gd
 extends CombatEntity
 
 var attack_hitbox := preload("res://scripts/AttackHitbox.gd").new()
@@ -10,14 +9,17 @@ var attack_hitbox := preload("res://scripts/AttackHitbox.gd").new()
 var player: Node = null
 
 func _ready():
+	add_to_group("enemy")
+
 	controller = CombatController.new()
+	create_attack_hitbox()
+	setup_combat_controller()
+	
 	create_sprite()
 	create_collision()
-	create_attack_hitbox()
+	create_hurtbox()
 	setup_audio()
-	setup_combat_controller()
 
-	# Configurações específicas de combate
 	controller.attack_startup = 0.6
 	controller.attack_duration = 0.4
 	controller.attack_cooldown = 0.5
@@ -54,4 +56,24 @@ func setup_combat_controller():
 	controller.play_sound.connect(play_sound)
 
 func create_attack_hitbox():
+	attack_hitbox = preload("res://scripts/AttackHitbox.gd").new()
+	attack_hitbox.set_collision_layers(3, 4)  # Enemy hitbox (layer 3) colide com player hurtbox (layer 4)
 	add_child(attack_hitbox)
+
+func create_hurtbox():
+	var hurtbox := Area2D.new()
+	hurtbox.name = "EnemyHurtbox"
+
+	var shape := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	rect.size = Vector2(64, 64)  # Menor que a hitbox para evitar sobreposição
+	shape.shape = rect
+	shape.position = Vector2.ZERO  # Centralizada
+
+	hurtbox.add_child(shape)
+	hurtbox.position = Vector2(0, 0)  # 🔁 Move para trás do ponto onde a hitbox aparece
+
+	hurtbox.set_collision_layer_value(2, true)  # Hurtbox layer
+	hurtbox.set_collision_mask_value(1, true)   # Colide com player hitbox
+	hurtbox.add_to_group("hurtbox")
+	add_child(hurtbox)
