@@ -13,9 +13,18 @@ func _ready():
 	create_attack_hitbox()
 	setup_audio()
 
+	# Configurações específicas de combate
+	controller.attack_startup = 0.6
+	controller.attack_duration = 0.4
+	controller.attack_cooldown = 0.5
+	controller.parry_window = 0.2
+	controller.parry_cooldown = 0.5
+	controller.post_parry_stun = 0.8
+
 func _process(delta):
 	handle_input()
 	handle_movement()
+	controller._process(delta)
 
 func handle_input():
 	if Input.is_action_just_pressed("attack"):
@@ -37,7 +46,6 @@ func setup_combat_controller():
 	controller.hitbox_enabled.connect(attack_hitbox.enable.bind(Vector2(0, -64)))
 	controller.hitbox_disabled.connect(attack_hitbox.disable)
 	controller.play_sound.connect(play_sound)
-	print("🕒 Player startup:", controller.attack_startup)
 
 func create_attack_hitbox():
 	add_child(attack_hitbox)

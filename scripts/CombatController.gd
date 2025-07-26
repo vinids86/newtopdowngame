@@ -21,6 +21,7 @@ enum ActionType {
 
 @export var attack_startup := 0.4
 @export var attack_duration := 0.3
+@export var attack_cooldown := 0.5
 @export var parry_window := 0.2
 @export var parry_cooldown := 0.5
 @export var post_parry_stun := 0.8
@@ -38,19 +39,16 @@ func setup(owner: Node):
 	owner_node = owner
 
 func _process(delta):
-	# Update effect timers
 	for key in status_effects.keys():
 		status_effects[key] -= delta
 		if status_effects[key] <= 0:
 			status_effects.erase(key)
 
-	# Update buffer timer
 	if buffer_timer > 0:
 		buffer_timer -= delta
 		if buffer_timer <= 0:
 			queued_action = ActionType.NONE
 
-	# Update main state timer
 	if state_timer > 0:
 		state_timer -= delta
 		if state_timer <= 0:
@@ -59,7 +57,6 @@ func _process(delta):
 func _end_current_state():
 	match combat_state:
 		CombatState.STARTUP:
-			print("⏱️ Inimigo: Fim do STARTUP, entrando em ATTACKING")
 			combat_state = CombatState.ATTACKING
 			state_timer = attack_duration
 			hitbox_enabled.emit()
@@ -67,18 +64,18 @@ func _end_current_state():
 			play_sound.emit("res://sfx/hit.wav")
 
 		CombatState.ATTACKING:
-			print("✅ Inimigo: Fim do ATTACKING, voltando para IDLE")
 			combat_state = CombatState.IDLE
 			hitbox_disabled.emit()
 			owner_node.modulate = Color.GRAY
+			apply_effect("attack_cooldown", attack_cooldown)
 
 		CombatState.PARRY_ACTIVE:
-			print("🛡️ Fim do PARRY, entrando em cooldown")
 			combat_state = CombatState.IDLE
 			apply_effect("parry_cooldown", parry_cooldown)
 			owner_node.modulate = Color.GRAY
 
 	try_execute_buffer()
+	apply_effect("attack_cooldown", attack_cooldown)
 
 func apply_effect(name: String, duration: float):
 	status_effects[name] = duration
@@ -87,7 +84,7 @@ func has_effect(name: String) -> bool:
 	return status_effects.has(name)
 
 func try_execute_buffer():
-	if has_effect("stunned"):
+	if has_effect("stunned") or has_effect("attack_cooldown"):
 		return
 
 	match queued_action:
@@ -99,7 +96,7 @@ func try_execute_buffer():
 				queued_action = ActionType.NONE
 
 func try_attack(from_buffer := false):
-	if combat_state == CombatState.IDLE and not has_effect("stunned"):
+	if combat_state == CombatState.IDLE and not has_effect("stunned") and not has_effect("attack_cooldown"):
 		combat_state = CombatState.STARTUP
 		state_timer = attack_startup
 		owner_node.modulate = Color.YELLOW
@@ -116,7 +113,6 @@ func try_parry(from_buffer := false):
 		return false
 
 	if combat_state == CombatState.STARTUP:
-		# Cancel attack to parry
 		combat_state = CombatState.PARRY_ACTIVE
 		state_timer = parry_window
 		owner_node.modulate = Color.BLUE
@@ -147,4 +143,4 @@ func on_blocked():
 	play_sound.emit("res://sfx/block.wav")
 
 func can_act() -> bool:
-	return combat_state == CombatState.IDLE and not has_effect("stunned")
+	return combat_state == CombatState.IDLE and not has_effect("stunned") and not has_effect("attack_cooldown")
