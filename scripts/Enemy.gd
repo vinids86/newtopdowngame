@@ -23,13 +23,6 @@ var attack_hitbox := preload("res://scripts/AttackHitbox.gd").new()
 var player: Node = null
 
 func _ready():
-	print("✅ Classe real de self: ", self.get_class())
-	print("✅ Script path real: ", get_script().resource_path)
-
-	print("🧠 Enemy.gd foi carregado corretamente")
-	print("📄 Script associado ao Enemy:", get_script())
-	print("📁 Caminho do script:", get_script().resource_path)
-
 	add_to_group("enemy")
 
 	controller = CombatController.new()
@@ -40,13 +33,6 @@ func _ready():
 	create_collision()
 	create_hurtbox()
 	setup_audio()
-
-	controller.attack_startup = 0.6
-	controller.attack_duration = 0.4
-	controller.attack_cooldown = 0.5
-	controller.parry_window = 0.2
-	controller.parry_cooldown = 0.5
-	controller.post_parry_stun = 0.8
 
 	player = get_node_or_null(target_path)
 
@@ -65,6 +51,10 @@ func _process(delta):
 	controller._process(delta)
 
 func move_toward_player():
+	if controller.combat_state in [CombatController.CombatState.STUNNED, CombatController.CombatState.GUARD_BROKEN]:
+		velocity = Vector2.ZERO
+		return
+
 	var direction = (player.global_position - global_position).normalized()
 	velocity = direction * 60
 	move_and_slide()
@@ -133,13 +123,31 @@ func take_damage(amount: int, attacker: Node) -> int:
 
 	if controller.combat_state == CombatController.CombatState.PARRY_ACTIVE:
 		print("⚡ Defesa foi um parry bem-sucedido!")
+		controller.did_parry_succeed = true
 		return DefenseResult.PARRIED
 
-	elif controller.combat_state == CombatController.CombatState.STARTUP:
+	elif controller.combat_state in [
+		CombatController.CombatState.IDLE,
+		CombatController.CombatState.RECOVERING,
+		CombatController.CombatState.STUNNED
+	]:
 		controller.on_blocked()
 		return DefenseResult.BLOCKED
 
+	# Leva dano, entra em STUNNED se sobreviver
+	elif controller.combat_state in [
+		CombatController.CombatState.STARTUP,
+		CombatController.CombatState.GUARD_BROKEN
+	]:
+		current_hp -= amount
+		if current_hp <= 0:
+			die()
+		else:
+			controller.change_state(CombatController.CombatState.STUNNED)
+		return DefenseResult.HIT
+
 	else:
+		print("⚠️ Estado de combate inesperado: %s" % controller.combat_state)
 		current_hp -= amount
 		if current_hp <= 0:
 			die()
@@ -152,3 +160,11 @@ func die():
 func on_parried():
 	print("⛔ Enemy foi parryado! Entrando em GUARD_BROKEN.")
 	controller.on_parried()
+
+func on_blocked():
+	print("🛡️ Enemy bloqueou o ataque. Entrando em STUNNED.")
+	if controller.owner_node == self:
+		controller.on_blocked()
+	else:
+		print("❌ controller.owner_node aponta para outro nó!:", controller.owner_node.name)
+	controller.on_blocked()

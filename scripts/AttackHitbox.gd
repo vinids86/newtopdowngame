@@ -66,35 +66,17 @@ func _on_area_entered(area: Area2D) -> void:
 		return
 
 	var result = defender.take_damage(1, attacker)
-	
-	print("🧠 Nome do atacante:", attacker.name)
-	print("🧠 Tipo do atacante:", typeof(attacker))
-	print("🧠 Classe declarada:", attacker.get_class())
-	print("🧠 Script associado:", attacker.get_script())
-	print("🧠 Script path:", attacker.get_script().resource_path)
-
-
 	if "controller" in attacker and attacker.controller:
 		match result:
 			DefenseResult.PARRIED:
-				print("🎯 Ataque foi parryado — chamando on_parried() do ATACANTE")
-				print("Script atribuído ao atacante:", attacker.get_script())
-				print("Script path real:", attacker.get_script().resource_path)
-
-				var methods = attacker.get_script().get_method_list()
-				for m in methods:
-					if m.name == "on_parried":
-						print("✅ MÉTODO on_parried DEFINIDO EM:", attacker.get_script().resource_path)
-
 				if attacker.has_method("on_parried"):
-					print("✅ has_method reconheceu on_parried no atacante")
 					attacker.on_parried()
 				else:
 					print("❌ Script atual não possui on_parried():", attacker.get_script())
 
 			DefenseResult.BLOCKED: 
-				print("🛡️ Ataque foi bloqueado — chamando on_blocked() do atacante")
-				attacker.controller.on_blocked()
+				print("🛡️ Ataque foi bloqueado — chamando on_blocked() do defensor")
+				defender.on_blocked()
 
 func _are_opposing_factions(a: Node, b: Node) -> bool:
 	return (a.is_in_group("player") and b.is_in_group("enemy")) or \
