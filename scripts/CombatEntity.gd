@@ -26,8 +26,7 @@ func take_damage(amount: int, attacker: Node) -> int:
 		return DefenseResult.HIT
 
 	if controller.combat_state == CombatController.CombatState.PARRY_ACTIVE:
-		if "controller" in attacker:
-			attacker.controller.on_parried()
+		print("⚡ Defesa foi um parry bem-sucedido!")
 		return DefenseResult.PARRIED
 
 	elif controller.combat_state == CombatController.CombatState.STARTUP:
@@ -73,3 +72,7 @@ func play_sound(path: String):
 		return
 	audio.stream = load(path)
 	audio.play()
+
+func on_parried():
+	print("⚠️ on_parried() chamado em CombatEntity (override esperado).")
+	controller.on_parried()

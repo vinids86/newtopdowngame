@@ -41,7 +41,7 @@ var status_effects: Dictionary = {}
 var transitions := {
 	CombatState.IDLE: [CombatState.STARTUP, CombatState.PARRY_ACTIVE],
 	CombatState.STARTUP: [CombatState.ATTACKING, CombatState.PARRY_ACTIVE],
-	CombatState.ATTACKING: [CombatState.RECOVERING],
+	CombatState.ATTACKING: [CombatState.RECOVERING, CombatState.GUARD_BROKEN],
 	CombatState.RECOVERING: [CombatState.IDLE],
 	CombatState.PARRY_ACTIVE: [CombatState.IDLE],
 	CombatState.STUNNED: [CombatState.IDLE],
@@ -111,7 +111,7 @@ func _on_enter_state(state: CombatState):
 			owner_node.modulate = Color.PURPLE
 			play_sound.emit("res://sfx/parry.wav")
 		CombatState.GUARD_BROKEN:
-			state_timer = post_parry_stun * 1.5
+			state_timer = post_parry_stun * 2
 			owner_node.modulate = Color.DARK_RED
 			play_sound.emit("res://sfx/guard_break.wav")
 		CombatState.IDLE:
