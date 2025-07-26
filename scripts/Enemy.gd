@@ -1,7 +1,6 @@
 # Enemy.gd
 extends CombatEntity
 
-var controller := CombatController.new()
 var attack_hitbox := preload("res://scripts/AttackHitbox.gd").new()
 
 @export var detection_range := 150.0
@@ -11,6 +10,7 @@ var attack_hitbox := preload("res://scripts/AttackHitbox.gd").new()
 var player: Node = null
 
 func _ready():
+	controller = CombatController.new()
 	create_sprite()
 	create_collision()
 	create_attack_hitbox()

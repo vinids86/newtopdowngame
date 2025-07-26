@@ -1,33 +1,75 @@
-# CombatEntity.gd
 extends CharacterBody2D
-
 class_name CombatEntity
 
-var sprite := Sprite2D.new()
-var collision_shape := CollisionShape2D.new()
-var audio := AudioStreamPlayer2D.new()
+# Resultado da defesa
+enum DefenseResult {
+	HIT,
+	BLOCKED,
+	PARRIED
+}
+
+@export var max_hp := 10
+var current_hp := max_hp
+
+var controller: CombatController
+var sprite: Sprite2D
+var collision: CollisionShape2D
+var audio: AudioStreamPlayer2D
 
 func _ready():
-	create_sprite()
-	create_collision()
-	setup_audio()
+	# Espera que o controller seja atribuído no filho
+	pass
+
+func take_damage(amount: int, attacker: Node) -> int:
+	if not controller:
+		print("❌ Entidade sem controller.")
+		return DefenseResult.HIT
+
+	if controller.combat_state == CombatController.CombatState.PARRY_ACTIVE:
+		if attacker.has("controller"):
+			attacker.controller.on_parried()
+		return DefenseResult.PARRIED
+
+	elif controller.combat_state == CombatController.CombatState.STARTUP:
+		controller.on_blocked()
+		return DefenseResult.BLOCKED
+
+	else:
+		current_hp -= amount
+		if current_hp <= 0:
+			die()
+		return DefenseResult.HIT
+
+func die():
+	queue_free()
+	print("☠ ", self.name, " morreu.")
 
 func create_sprite():
+	sprite = Sprite2D.new()
 	sprite.texture = preload("res://assets/white_square.png")
-	sprite.modulate = Color.GRAY
+	sprite.modulate = Color.WHITE
+	sprite.centered = true
 	add_child(sprite)
 
 func create_collision():
-	var body_shape = RectangleShape2D.new()
-	body_shape.size = Vector2(64, 64)
-	collision_shape.shape = body_shape
-	add_child(collision_shape)
+	collision = CollisionShape2D.new()
+	var shape = RectangleShape2D.new()
+
+	if sprite and sprite.texture:
+		var tex_size = sprite.texture.get_size()
+		shape.extents = tex_size / 2
+	else:
+		shape.extents = Vector2(16, 16)
+
+	collision.shape = shape
+	add_child(collision)
 
 func setup_audio():
+	audio = AudioStreamPlayer2D.new()
 	add_child(audio)
 
 func play_sound(path: String):
-	var stream = load(path)
-	if stream:
-		audio.stream = stream
-		audio.play()
+	if not audio:
+		return
+	audio.stream = load(path)
+	audio.play()

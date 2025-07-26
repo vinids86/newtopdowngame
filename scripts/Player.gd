@@ -3,10 +3,10 @@ extends CombatEntity
 
 @export var speed := 150.0
 
-var controller := CombatController.new()
 var attack_hitbox := preload("res://scripts/AttackHitbox.gd").new()
 
 func _ready():
+	controller = CombatController.new()
 	setup_combat_controller()
 	create_sprite()
 	create_collision()
@@ -18,7 +18,7 @@ func _ready():
 	controller.attack_duration = 0.4
 	controller.attack_cooldown = 0.5
 	controller.parry_window = 0.2
-	controller.parry_cooldown = 0.5
+	controller.parry_cooldown = 1.5
 	controller.post_parry_stun = 0.8
 
 func _process(delta):
