@@ -22,10 +22,13 @@ var attack_hitbox := preload("res://scripts/AttackHitbox.gd").new()
 @export var target_path := NodePath("/root/Main/Player")
 var player: Node = null
 
+@export var parry_chance := 1.0  # 50%
+
 func _ready():
 	add_to_group("enemy")
 
 	controller = CombatController.new()
+	controller.parry_window = 0.3
 	create_attack_hitbox()
 	setup_combat_controller()
 	
@@ -36,12 +39,24 @@ func _ready():
 
 	player = get_node_or_null(target_path)
 
+var parry_cooldown_timer := 0.0
+
 func _process(delta):
 	if not player:
 		return
 
+	parry_cooldown_timer -= delta
+
 	var distance = global_position.distance_to(player.global_position)
 
+	# Tenta parry se player está perto E em startup
+	if distance <= attack_range and parry_cooldown_timer <= 0:
+		if player and player.has_method("get_combat_controller"):
+			var player_controller = player.controller
+			if player_controller.combat_state == CombatController.CombatState.STARTUP:
+				try_parry()
+
+	# Se pode agir, tenta atacar
 	if controller.can_act() and controller.queued_action == CombatController.ActionType.NONE:
 		if distance <= attack_range:
 			controller.try_attack()
@@ -49,6 +64,12 @@ func _process(delta):
 			move_toward_player()
 
 	controller._process(delta)
+	
+func try_parry():
+	if randf() <= parry_chance:
+		var success = controller.try_parry()
+		if success:
+			parry_cooldown_timer = 1.0  # evita spammar o parry
 
 func move_toward_player():
 	if controller.combat_state in [CombatController.CombatState.STUNNED, CombatController.CombatState.GUARD_BROKEN]:
@@ -121,7 +142,10 @@ func take_damage(amount: int, attacker: Node) -> int:
 		print("❌ Entidade sem controller.")
 		return DefenseResult.HIT
 
-	if controller.combat_state == CombatController.CombatState.PARRY_ACTIVE:
+	if controller.combat_state in [
+		CombatController.CombatState.PARRY_ACTIVE,
+		CombatController.CombatState.PARRY_SUCCESS,
+	]:
 		print("⚡ Defesa foi um parry bem-sucedido!")
 		controller.did_parry_succeed = true
 		return DefenseResult.PARRIED
@@ -129,7 +153,8 @@ func take_damage(amount: int, attacker: Node) -> int:
 	elif controller.combat_state in [
 		CombatController.CombatState.IDLE,
 		CombatController.CombatState.RECOVERING,
-		CombatController.CombatState.STUNNED
+		CombatController.CombatState.STUNNED,
+		CombatController.CombatState.PARRY_MISS,
 	]:
 		controller.on_blocked()
 		return DefenseResult.BLOCKED

@@ -108,7 +108,10 @@ func take_damage(amount: int, attacker: Node) -> int:
 		print("❌ Entidade sem controller.")
 		return DefenseResult.HIT
 
-	if controller.combat_state == CombatController.CombatState.PARRY_ACTIVE:
+	if controller.combat_state in [
+		CombatController.CombatState.PARRY_ACTIVE,
+		CombatController.CombatState.PARRY_SUCCESS,
+	]:
 		print("⚡ Defesa foi um parry bem-sucedido!")
 		controller.did_parry_succeed = true
 		return DefenseResult.PARRIED
@@ -116,7 +119,8 @@ func take_damage(amount: int, attacker: Node) -> int:
 	elif controller.combat_state in [
 		CombatController.CombatState.IDLE,
 		CombatController.CombatState.RECOVERING,
-		CombatController.CombatState.STUNNED
+		CombatController.CombatState.STUNNED,
+		CombatController.CombatState.PARRY_MISS,
 	]:
 		controller.on_blocked()
 		return DefenseResult.BLOCKED
@@ -156,3 +160,5 @@ func on_blocked():
 		print("❌ controller.owner_node aponta para outro nó!:", controller.owner_node.name)
 	controller.on_blocked()
 	
+func get_combat_controller():
+	return controller

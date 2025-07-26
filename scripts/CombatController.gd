@@ -29,7 +29,7 @@ enum ActionType {
 @export var parry_window := 0.2
 @export var parry_cooldown := 1.5
 @export var block_stun := 3.0
-@export var guard_break_stun := 2
+@export var guard_break_stun := 3
 @export var input_buffer_duration := 0.4
 
 var combat_state: CombatState = CombatState.IDLE
@@ -41,6 +41,7 @@ var buffer_timer: float = 0.0
 var status_effects: Dictionary = {}
 
 var did_parry_succeed := false
+var previous_state: CombatState = CombatState.IDLE
 
 var transitions := {
 	CombatState.IDLE: [CombatState.STARTUP, CombatState.PARRY_ACTIVE, CombatState.STUNNED],
@@ -117,6 +118,7 @@ func change_state(new_state: CombatState):
 		CombatState.keys()[new_state]
 	])
 
+	previous_state = combat_state
 	_on_exit_state(combat_state)
 	combat_state = new_state
 	_on_enter_state(combat_state)
@@ -148,6 +150,7 @@ func _on_enter_state(state: CombatState):
 			play_sound.emit("res://sfx/block.wav")
 		CombatState.GUARD_BROKEN:
 			state_timer = guard_break_stun
+			apply_effect("post_guard_break", 0.3)
 			owner_node.modulate = Color.DARK_RED
 			play_sound.emit("res://sfx/guard_break.wav")
 		CombatState.PARRY_SUCCESS:
@@ -158,7 +161,8 @@ func _on_enter_state(state: CombatState):
 			owner_node.modulate = Color.DARK_ORANGE
 		CombatState.IDLE:
 			owner_node.modulate = Color.GRAY
-			try_execute_buffer()
+			if previous_state != CombatState.GUARD_BROKEN:
+				try_execute_buffer()
 
 func _on_exit_state(state: CombatState):
 	if state == CombatState.ATTACKING:
