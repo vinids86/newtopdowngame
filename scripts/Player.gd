@@ -1,4 +1,5 @@
 extends CharacterBody2D
+class_name Player
 
 # Resultado da defesa
 enum DefenseResult {
@@ -11,11 +12,18 @@ enum DefenseResult {
 @export var max_hp := 10
 var current_hp := max_hp
 
+@export var max_stamina := 100.0
+var current_stamina := max_stamina
+
 var attack_hitbox := preload("res://scripts/AttackHitbox.gd").new()
 var controller: CombatController
 var sprite: Sprite2D
 var collision: CollisionShape2D
 var audio: AudioStreamPlayer2D
+
+@export var stamina_recovery_rate := 20.0  # unidades por segundo
+@export var stamina_recovery_delay := 1.0  # segundos após ação para começar a recuperar
+var stamina_recovery_timer := 0.0
 
 func _ready():
 	add_to_group("player")
@@ -23,7 +31,6 @@ func _ready():
 	controller = CombatController.new()
 	create_attack_hitbox()
 	setup_combat_controller()
-
 	create_sprite()
 	create_collision()
 	create_hurtbox()
@@ -34,6 +41,13 @@ func _process(delta):
 	handle_movement()
 	controller._process(delta)
 
+	if controller.can_act():
+		if stamina_recovery_timer <= 0.0:
+			current_stamina += stamina_recovery_rate * delta
+			current_stamina = clamp(current_stamina, 0, max_stamina)
+		else:
+			stamina_recovery_timer -= delta
+
 func handle_input():
 	if Input.is_action_just_pressed("attack"):
 		print("🖱️ Input de ataque detectado!")
@@ -42,7 +56,12 @@ func handle_input():
 		controller.try_parry()
 
 func handle_movement():
-	if controller.combat_state in [CombatController.CombatState.STUNNED, CombatController.CombatState.GUARD_BROKEN, CombatController.CombatState.PARRY_MISS, CombatController.CombatState.PARRY_ACTIVE]:
+	if controller.combat_state in [
+		CombatController.CombatState.STUNNED,
+		CombatController.CombatState.GUARD_BROKEN,
+		CombatController.CombatState.PARRY_MISS,
+		CombatController.CombatState.PARRY_ACTIVE
+	]:
 		velocity = Vector2.ZERO
 		return
 
@@ -102,7 +121,6 @@ func play_sound(path: String):
 	audio.stream = load(path)
 	audio.play()
 
-# Lógica de combate direta (substitui CombatEntity)
 func take_damage(amount: int, attacker: Node) -> int:
 	if not controller:
 		print("❌ Entidade sem controller.")
@@ -125,7 +143,6 @@ func take_damage(amount: int, attacker: Node) -> int:
 		controller.on_blocked()
 		return DefenseResult.BLOCKED
 
-	# Leva dano, entra em STUNNED se sobreviver
 	elif controller.combat_state in [
 		CombatController.CombatState.STARTUP,
 		CombatController.CombatState.GUARD_BROKEN
@@ -151,14 +168,19 @@ func die():
 func on_parried():
 	print("⛔ Player foi parryado! Entrando em GUARD_BROKEN.")
 	controller.on_parried()
-	
+
 func on_blocked():
 	print("🛡️ Player bloqueou o ataque. Entrando em STUNNED.")
-	if controller.owner_node == self:
-		controller.on_blocked()
-	else:
-		print("❌ controller.owner_node aponta para outro nó!:", controller.owner_node.name)
 	controller.on_blocked()
-	
+
 func get_combat_controller():
 	return controller
+
+func has_stamina(amount: float) -> bool:
+	return current_stamina >= amount
+
+func consume_stamina(amount: float):
+	var previous = current_stamina
+	current_stamina = clamp(current_stamina - amount, 0, max_stamina)
+	if previous > current_stamina:
+		stamina_recovery_timer = stamina_recovery_delay

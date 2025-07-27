@@ -11,6 +11,9 @@ enum DefenseResult {
 @export var max_hp := 10
 var current_hp := max_hp
 
+@export var max_stamina := 100.0
+var current_stamina := max_stamina
+
 var controller: CombatController
 var sprite: Sprite2D
 var collision: CollisionShape2D
@@ -22,7 +25,13 @@ var attack_hitbox := preload("res://scripts/AttackHitbox.gd").new()
 @export var target_path := NodePath("/root/Main/Player")
 var player: Node = null
 
-@export var parry_chance := 1.0  # 50%
+@export var parry_chance := 0.8
+
+@export var stamina_recovery_rate := 20.0  # unidades por segundo
+@export var stamina_recovery_delay := 1.0  # segundos após ação para começar a recuperar
+var stamina_recovery_timer := 0.0
+
+var parry_cooldown_timer := 0.0
 
 func _ready():
 	add_to_group("enemy")
@@ -31,15 +40,12 @@ func _ready():
 	controller.parry_window = 0.3
 	create_attack_hitbox()
 	setup_combat_controller()
-	
 	create_sprite()
 	create_collision()
 	create_hurtbox()
 	setup_audio()
 
 	player = get_node_or_null(target_path)
-
-var parry_cooldown_timer := 0.0
 
 func _process(delta):
 	if not player:
@@ -51,10 +57,8 @@ func _process(delta):
 
 	# Tenta parry se player está perto E em startup
 	if distance <= attack_range and parry_cooldown_timer <= 0:
-		if player and player.has_method("get_combat_controller"):
-			var player_controller = player.controller
-			if player_controller.combat_state == CombatController.CombatState.STARTUP:
-				try_parry()
+		if player.controller.combat_state == CombatController.CombatState.STARTUP:
+			try_parry()
 
 	# Se pode agir, tenta atacar
 	if controller.can_act() and controller.queued_action == CombatController.ActionType.NONE:
@@ -64,7 +68,13 @@ func _process(delta):
 			move_toward_player()
 
 	controller._process(delta)
-	
+
+	if controller.can_act():
+		if stamina_recovery_timer <= 0.0:
+			current_stamina = clamp(current_stamina + stamina_recovery_rate * delta, 0, max_stamina)
+		else:
+			stamina_recovery_timer -= delta
+
 func try_parry():
 	if randf() <= parry_chance:
 		var success = controller.try_parry()
@@ -107,7 +117,6 @@ func create_hurtbox():
 
 	hurtbox.set_collision_layer_value(2, true)
 	hurtbox.set_collision_mask_value(1, true)
-	hurtbox.add_to_group("hurtbox")
 	add_child(hurtbox)
 
 func create_sprite():
@@ -159,7 +168,6 @@ func take_damage(amount: int, attacker: Node) -> int:
 		controller.on_blocked()
 		return DefenseResult.BLOCKED
 
-	# Leva dano, entra em STUNNED se sobreviver
 	elif controller.combat_state in [
 		CombatController.CombatState.STARTUP,
 		CombatController.CombatState.GUARD_BROKEN
@@ -187,9 +195,13 @@ func on_parried():
 	controller.on_parried()
 
 func on_blocked():
-	print("🛡️ Enemy bloqueou o ataque. Entrando em STUNNED.")
-	if controller.owner_node == self:
-		controller.on_blocked()
-	else:
-		print("❌ controller.owner_node aponta para outro nó!:", controller.owner_node.name)
 	controller.on_blocked()
+
+func has_stamina(amount: float) -> bool:
+	return current_stamina >= amount
+
+func consume_stamina(amount: float):
+	var previous = current_stamina
+	current_stamina = clamp(current_stamina - amount, 0, max_stamina)
+	if previous > current_stamina:
+		stamina_recovery_timer = stamina_recovery_delay

@@ -31,6 +31,8 @@ enum ActionType {
 @export var block_stun := 3.0
 @export var guard_break_stun := 3
 @export var input_buffer_duration := 0.4
+@export var attack_stamina_cost := 10.0
+@export var block_stamina_cost := 20.0
 
 var combat_state: CombatState = CombatState.IDLE
 var state_timer: float = 0.0
@@ -130,6 +132,7 @@ func _on_enter_state(state: CombatState):
 		CombatState.STARTUP:
 			state_timer = attack_startup
 			owner_node.modulate = Color.YELLOW
+			owner_node.consume_stamina(attack_stamina_cost)
 		CombatState.ATTACKING:
 			state_timer = attack_duration
 			hitbox_enabled.emit()
@@ -148,6 +151,7 @@ func _on_enter_state(state: CombatState):
 			buffer_timer = 0
 			owner_node.modulate = Color.PURPLE
 			play_sound.emit("res://sfx/block.wav")
+			owner_node.consume_stamina(block_stamina_cost)
 		CombatState.GUARD_BROKEN:
 			state_timer = guard_break_stun
 			apply_effect("post_guard_break", 0.3)
@@ -186,6 +190,9 @@ func try_execute_buffer():
 				queued_action = ActionType.NONE
 
 func try_attack(from_buffer := false):
+	if owner_node.has_method("has_stamina") and not owner_node.has_stamina(attack_stamina_cost):
+		return false
+
 	if combat_state in [CombatState.STUNNED, CombatState.GUARD_BROKEN]:
 		return false
 
